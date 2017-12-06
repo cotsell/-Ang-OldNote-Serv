@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "outDir": "build",
+        "target": "es5",
+        "module": "commonjs",
+        "lib": [
+            "es2017", "dom"
+        ]
+    },
+    "exclude": [
+        "node_modules",
+        "db/store"
+    ]
+}
