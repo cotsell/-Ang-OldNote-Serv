@@ -21,7 +21,7 @@ export class google {
         this.tokenType = json[this.TOKEN_TYPE];
         this.expiresIn = json[this.EXPIRES_IN];
         this.idToken = json[this.ID_TOKEN];
-        return this;
+        //return this;
     }
 
     getAccessToken(): string { return this.accessToken; }
@@ -73,22 +73,9 @@ export class googleOauth {
     }
 
     // 구글로그인 이후 리다이렉트로 받은 'Code'를 가지고,
-    // 구글에게 AccessToken등으로 교환을 요청하는 내용의 Observable을 리턴.
-    getGoogleAccessToken(code: string): Observable<google> {
-        return new Observable(obs => {
-            this.getGoogleAccessTokenObservable(code)
-            .subscribe(
-                observer => {
-                    obs.next(new google(observer));
-                }
-            );
-        });
-    }
-
-    //Code를 얻는 내용을 담은 옵저버블을 만들어서 돌려줍니다.
-    //getGoogleAccessToken()에 같이 들어가면 복잡하니까 나눈거.
-    getGoogleAccessTokenObservable(code: string): Observable<any> {
-        return new Observable(observer => {
+    // 구글에게 AccessToken등으로 교환을 요청하는 내용의 Promise를 리턴.
+    getGoogleAccessToken(code: string): Promise<google> {
+        return new Promise((respond, rej) => {
             request.post(
                 { url: 'https://www.googleapis.com/oauth2/v4/token',
                     form: {
@@ -104,23 +91,23 @@ export class googleOauth {
                     console.log('googleOauth.ts: getGoogleAccessToken(): statusCode: ', res && res.statusCode);
                     // console.log('googleOauth.ts: getGoogleAccessToken(): body: ', body);
 
-                    observer.next(JSON.parse(body));
+                    respond(new google(JSON.parse(body)));
                 }
             );
-        })
+        });
     }
-    
-    //AccessToken으로 해당 유저의 프로필을 가져오는 내용의 Observable을 리턴.
-    getUserProfile(access_token: string): Observable<any> {
-        return new Observable(observer => {
+
+     //AccessToken으로 해당 유저의 프로필을 가져오는 내용의 Observable을 리턴.
+     getUserProfile(access_token: string): Promise<any> {
+        return new Promise((respond, rej) => {
             const url = 'https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses&access_token=' + access_token;
-            
+
             request(url, (err, res, body) => {
                 console.log('googleOauth.ts: getUserProfile(): error: ', err);
                 console.log('googleOauth.ts: getUserProfile(): statusCode: ', res && res.statusCode);
                 // console.log('googleOauth.ts: getUserProfile(): body: ', body);
 
-                observer.next(JSON.parse(body));
+                respond(JSON.parse(body));
             });
         });
     }

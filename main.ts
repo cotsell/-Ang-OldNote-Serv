@@ -6,7 +6,7 @@ import * as mongoose from 'mongoose';
 import { Mongo } from './db/mongo';
 import { sysConf } from './config/sysConfig';
 import { accountResult } from './accountResult';
-import { googleOauth } from './googleOauth/googleOauth';
+import { googleOauth, google } from './googleOauth/googleOauth';
 
 const app = express();
 const mongo = new Mongo(sysConf.DB_URL);
@@ -93,10 +93,11 @@ app.get('/account/login/direct', (req, res) => {
 
 // Direct 가입
 app.get('/account/sign/direct', (req, res) => {
-    let { id, password } = req.query;
+    let { id, password, display_name } = req.query;
     
     if((id === '' || id === undefined) || 
-    (password === '' || password === undefined)) {
+    (password === '' || password === undefined) ||
+    (display_name === '' || display_name === undefined)) {
         console.log('Somebody tried to sign without required info.');
         res.json(new accountResult('필수 정보가 누락되었습니다.', false, null));
         return ;
@@ -120,6 +121,7 @@ app.get('/account/sign/direct', (req, res) => {
         value = new (mongo.getUser())();
         value['id'] = id;
         value['password'] = password;
+        value['display_name'] = display_name;
         value['account_div'] = sysConf.ACCOUNT_DIV_DIRECT; 
         
         return value.save();
@@ -154,7 +156,35 @@ app.get('/account/sign/google/redirect', (req, res) => {
     // TODO :: 엑세스토큰으로 유저 정보를 일단 받아와서
     // TODO :: DB에 유저 정보가 있으면 정보 update하고 jwt토큰 생성 및 리턴.
     // TODO :: 없으면 모든 정보 insert하고 실패 정보 리턴. 
-    res.send('is working.');
+    console.log(req.query['code']);
+    let code = req.query['code'];
+    let _go = new googleOauth(
+        sysConf.CLIENT_ID, 
+        sysConf.CLIENT_SECRET, 
+        sysConf.REDIRECT_URL_DECODE,
+        sysConf.REDIRECT_URL_ENCODE);
+    
+    let checkType = (value: google) => {
+        console.log('main.ts: /account/sign/google/redirect: accessToken is ' + value.getAccessToken());
+        console.log('main.ts: /account/sign/google/redirect: refreshToken is ' + value.getRefreshToken());
+        return _go.getUserProfile(value.getAccessToken());
+    }
+
+    let signOrLogin = (value) => {
+        console.log('main.ts: /account/sign/google/redirect: user email address is ' + value['emailAddresses'][0]['value']);
+        console.log('main.ts: /account/sign/google/redirect: user email address is ' + value['names'][0]['displayName']);
+
+        // TODO :: 여기부터 시작하면 됨. 디비에서 유저 정보 읽어와서 가입인가 로그인인가 판단해야 해.
+
+        res.json(value);
+    }
+
+    _go.getGoogleAccessToken(code)
+    .then(checkType)
+    .then(signOrLogin)
+    .catch(err => console.log(err));
+    //['names'][0]['metadata']['id']
+    //res.send('is working.');
 });
 
 // 구글의 로그인과 가입의 절차가 같으므로 이렇게 처리.

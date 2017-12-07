@@ -25,6 +25,7 @@ export class Mongo {
         this.userSchema = new mongoose.Schema({
                 id: { type: String, required: true, unique: true, lowercase: true },
                 password: { type: String, required: true, lowercase: true },
+                display_name: { type: String, required: true },
                 account_div: { type: Number, required: true }
             }
         );
