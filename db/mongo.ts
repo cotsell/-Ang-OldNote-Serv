@@ -4,7 +4,7 @@ import * as mongoose from 'mongoose';
 // 싱글턴으로 가지는 않기로 함.
 export class Mongo {
     db: mongoose.Connection;
-    userSchma: mongoose.Schema;
+    userSchema: mongoose.Schema;
         
     constructor(url: string) {
         this.setConnectMongoDB(url);
@@ -22,18 +22,23 @@ export class Mongo {
     }
 
     setUser() {
-        this.userSchma = new mongoose.Schema({
+        this.userSchema = new mongoose.Schema({
                 id: { type: String, required: true, unique: true, lowercase: true },
-                password: { type: String, required: true, lowercase: true }
+                password: { type: String, required: true, lowercase: true },
+                account_div: { type: Number, required: true }
             }
         );
 
-        this.userSchma.statics['findOneByUserName'] = function(userId: string): Promise<mongoose.Document> {
+        this.userSchema.statics['findOneByUserName'] = function(userId: string): Promise<mongoose.Document> {
             return this['find']({ id: userId });
+        }
+
+        this.userSchema.statics['insertUserSignInfo'] = function(id: string, password: string): Promise<mongoose.Document> {
+            return this['insert']({ id: id, password: password });
         }
     }
 
     getUser(): mongoose.Model<mongoose.Document> {
-        return mongoose.model('user', this.userSchma);
+        return mongoose.model('user', this.userSchema);
     }
 }

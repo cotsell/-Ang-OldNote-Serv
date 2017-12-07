@@ -1,4 +1,4 @@
-export class loginStatus {
+export class accountResult {
     msg: string;
     loginResult: boolean;
     key: string;
