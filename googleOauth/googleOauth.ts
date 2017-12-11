@@ -9,11 +9,12 @@ export class google {
     private EXPIRES_IN = 'expires_in';
     private ID_TOKEN = 'id_token';
 
-    accessToken: string;
-    refreshToken: string;
-    tokenType: string;
-    expiresIn: string;
-    idToken: string;
+    private accessToken: string;
+    private refreshToken: string;
+    private tokenType: string;
+    private expiresIn: string;
+    private idToken: string;
+    private profile: googleProfile;
 
     constructor(json: any) {
         this.accessToken = json[this.ACCESS_TOKEN];
@@ -29,6 +30,22 @@ export class google {
     getTokenType(): string { return this.tokenType; }
     getExpiresIn(): string { return this.expiresIn; }
     getIdToken(): string { return this.idToken; }
+    getUserProfile(): googleProfile { return this.profile; }
+
+    setUserProfile(profile: googleProfile) { this.profile = profile; }
+}
+
+export class googleProfile {
+    private displayName: string;
+    private emailAddress: string;
+
+    constructor(json: any) {
+        this.emailAddress = json['emailAddresses'][0]['value'];
+        this.displayName = json['names'][0]['displayName'];
+    }
+
+    getDisplayName(): string { return this.displayName; }
+    getEmailAddress(): string { return this.emailAddress; }
 }
 
 export class googleOauth {
@@ -98,7 +115,7 @@ export class googleOauth {
     }
 
      //AccessToken으로 해당 유저의 프로필을 가져오는 내용의 Observable을 리턴.
-     getUserProfile(access_token: string): Promise<any> {
+     getUserProfile(access_token: string): Promise<googleProfile> {
         return new Promise((respond, rej) => {
             const url = 'https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses&access_token=' + access_token;
 
@@ -106,8 +123,8 @@ export class googleOauth {
                 console.log('googleOauth.ts: getUserProfile(): error: ', err);
                 console.log('googleOauth.ts: getUserProfile(): statusCode: ', res && res.statusCode);
                 // console.log('googleOauth.ts: getUserProfile(): body: ', body);
-
-                respond(JSON.parse(body));
+                
+                respond(new googleProfile(JSON.parse(body)));
             });
         });
     }
