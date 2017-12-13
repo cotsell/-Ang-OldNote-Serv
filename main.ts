@@ -11,6 +11,15 @@ import { googleOauth, google, googleProfile } from './googleOauth/googleOauth';
 const app = express();
 const mongo = new Mongo(sysConf.DB_URL);
 
+
+//동일출처정책(CORS)를 해결하기 위해 해더에 다음과 같은 내용을 추가.
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'X-Requested-With');
+    res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE');
+    next();
+});
+
 app.get('/', (req, res) => {
     res.send('Server On.');
 });
@@ -74,7 +83,7 @@ app.get('/account/login/direct', (req, res) => {
             },
             (err, token) => {
                 console.log('사용자에게 새로운 JWT 토큰 발행함. : key = '+token);
-                res.json(new accountResult('로그인 성공', true, token));
+                res.json(new accountResult('로그인 성공', true, token, value[0]));
             }
         );
     }
@@ -188,7 +197,7 @@ app.get('/account/sign/google/redirect', (req, res) => {
         let hasUser = (childValue: mongoose.Document) => {
             if(childValue.toString() !== '') { // DB에 해당 유저 정보가 있다면..
                 // 기존 유저가 존재하므로 로그인으로 처리
-                login(value);
+                login(childValue);
             } else {
                 // 기존 유저가 존재하지 않으므로 가입으로 처리.
                 sign(value);
@@ -210,10 +219,10 @@ app.get('/account/sign/google/redirect', (req, res) => {
         }
 
         // 로그인 할 경우의 처리.
-        let login = (childValue: google) => {
+        let login = (childValue) => {
             // DB에 유저 정보가 있으면 정보 update하고 jwt토큰 생성 및 리턴.
             console.log('구글 로그인이다.');
-            mongo.getUser()['updateGoogleUserInfo'](childValue)
+            mongo.getUser()['updateGoogleUserInfo'](value)
             .then((updateResult) => { 
                 if(updateResult['nModified'] != '1' || updateResult['ok'] != '1') {
                     res.json(new accountResult('로그인 실패. AccessToken 수정에 실패 함.', false, null));
@@ -222,7 +231,7 @@ app.get('/account/sign/google/redirect', (req, res) => {
                 
                 jwt.sign(
                     {
-                        Id: childValue.getUserProfile().getEmailAddress(),
+                        Id: value.getUserProfile().getEmailAddress(),
                     },
                     sysConf.JWT_SECRET,
                     {
@@ -232,7 +241,9 @@ app.get('/account/sign/google/redirect', (req, res) => {
                     },
                     (err, token) => {
                         console.log('사용자에게 새로운 JWT 토큰 발행함. : key = '+token);
-                        res.json(new accountResult('로그인 성공', true, token));
+                        res.redirect(sysConf.CLIENT_ADDRESS + '?key='+token + '&' +
+                                        'id=' + childValue['id'] + '&' + 
+                                        'display_name=' + childValue['display_name']);
                     }
                 );
             });
@@ -259,6 +270,80 @@ function returnGoogleAddressForLoginAndSign(res) {
     
     res.json(_go.getGoogleOauthURL());
 }
+
+// 클라이언트에게 요청받은 프로젝트 리스트를 리턴해줍니다.
+app.get('/get/project_list', (req, res) => {
+    let { key, id }  = req.query;
+    
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    if(id === '' || id === null || id === undefined) {
+        res.json(new accountResult('ID가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+    
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            // console.log(decode);
+            loadProjectList()
+            .then(value => {
+                res.json(value); 
+            });
+        }
+    });
+
+    function loadProjectList(): Promise<mongoose.Document> {
+        return mongo.getProject()['getProjectList'](id);
+    }
+    
+});
+
+// 클라이언트에게 요청받은 서브젝트 리스트를 리턴해줍니다.
+// 각 서브젝트에 해당되는 아이템들도 같이 가져옵니다.
+app.get('/get/subject_list', (req, res) => {
+    let { key, id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    if(id === '' || id === null || id === undefined) {
+        res.json(new accountResult('ID가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+    
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            // console.log(decode);
+            loadSubjectList()
+            .then(loadItemList);
+        }
+    });
+
+    function loadSubjectList(): Promise<mongoose.Document> {
+        return mongo.getSubject()['getSubjectList'](id);
+    }
+
+    function loadItemList(value) {
+        // console.log(value.length);
+        let result = { subjects: value };
+        let ids: any[] = [];
+        for(let i = 0; i < value.length; i++) {
+            ids.push(value[i]['_id']);
+        }//console.log(ids);
+        mongo.getItem()['getItemList'](ids)
+        .then(finalValue => {
+            result['items'] = finalValue;
+            res.json(result);
+        });
+    }
+});
 
 const httpServer = app.listen(sysConf.HTTP_SERVER_PORT, '', () => {
     console.log(`port: ${ httpServer.address().port }`);

@@ -1,4 +1,7 @@
 export class sysConf {
+    // Client
+    static CLIENT_ADDRESS = 'http://localhost:4200';
+
     // Server
     static HTTP_SERVER_PORT = 8000;
     static WEBSOCKET_SERVER_PORT = 8100; 
