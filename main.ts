@@ -7,16 +7,22 @@ import { Mongo } from './db/mongo';
 import { sysConf } from './config/sysConfig';
 import { accountResult } from './accountResult';
 import { googleOauth, google, googleProfile } from './googleOauth/googleOauth';
+import { ISubject } from './Interface';
 
 const app = express();
 const mongo = new Mongo(sysConf.DB_URL);
 
 
-//동일출처정책(CORS)를 해결하기 위해 해더에 다음과 같은 내용을 추가.
+// 바디파서 사용하기 위한 설정.
+app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.json());
+
+// 동일출처정책(CORS)를 해결하기 위해 해더에 다음과 같은 내용을 추가.
+// 이 항목은 가능한 미들웨어 선언 이후에 위치하도록 하자.
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'X-Requested-With');
-    res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE');
+    res.header('Access-Control-Allow-Headers', 'X-Requested-With, Origin, Accept, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization');
+    res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, OPTIONS, DELETE');
     next();
 });
 
@@ -268,7 +274,7 @@ function returnGoogleAddressForLoginAndSign(res) {
         sysConf.REDIRECT_URL_DECODE,
         sysConf.REDIRECT_URL_ENCODE);
     
-    res.json(_go.getGoogleOauthURL());
+    res.json({ result: _go.getGoogleOauthURL() });
 }
 
 // 클라이언트에게 요청받은 프로젝트 리스트를 리턴해줍니다.
@@ -302,6 +308,87 @@ app.get('/get/project_list', (req, res) => {
     
 });
 
+app.get('/get/project', (req, res) => {
+    let { key, project_id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    if(project_id === '' || project_id === null || project_id === undefined) {
+        res.json(new accountResult('ID가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+    
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            // console.log(decode);
+            loadProject(project_id)
+            .then(value => {
+                res.json(value); 
+            });
+        }
+    });    
+
+    function loadProject(m_Project_id): Promise<mongoose.Document> {
+        return mongo.getProject()['getProjectOne'](m_Project_id);
+    }
+});
+
+// 프로젝트의 정보를 수정합니다.
+app.put('/update/project', (req, res) => {
+    let { key } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            updateProject()
+            .then(result => {
+                // console.log(result);
+                res.json(result);
+            });
+        }
+    });
+
+    function updateProject(): Promise<mongoose.Document> {
+        return mongo.getProject()['updateProject'](req.body);
+    }
+
+});
+
+// 서브젝트의 정보를 수정합니다.
+app.put('/update/subject', (req, res) => {
+    let { key } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            updateSubject()
+            .then(result => {
+                // console.log(result);
+                res.json(result);
+            });
+        }
+    });
+
+    function updateSubject() {
+        console.log(req.body);
+        return mongo.getSubject()['updateSubject'](req.body);
+    }
+});
+
 // 클라이언트에게 요청받은 서브젝트 리스트를 리턴해줍니다.
 // 각 서브젝트에 해당되는 아이템들도 같이 가져옵니다.
 app.get('/get/subject_list', (req, res) => {
@@ -330,6 +417,8 @@ app.get('/get/subject_list', (req, res) => {
         return mongo.getSubject()['getSubjectList'](id);
     }
 
+    // 디비에서 가져온 서브젝트 리스트를 참고해서, 관련된 아이템들도 같이
+    // 검색해서 합친 후 서브젝트와 아이템을 같이 클라이언트에게 전송.
     function loadItemList(value) {
         // console.log(value.length);
         let result = { subjects: value };
@@ -342,6 +431,363 @@ app.get('/get/subject_list', (req, res) => {
             result['items'] = finalValue;
             res.json(result);
         });
+    }
+});
+
+// 클라이언트가 요청한 Item의 정보를 수정합니다.
+// 수정 후 결과는 상태와 더불어 바뀐 내용을 같이 보냅니다.
+// 변경 항목 중 '_id'는 필수 항목이에요.
+app.put('/update/item', (req, res) => {
+    console.log(`/update/item 으로 요청이 왔어요. : ${ req.body }`);
+    
+    mongo.getItem()['updateItem'](req.body, (err, raw) => {
+        res.json(raw);
+    });
+});
+
+app.get('/get/item', (req, res) => {
+    let { key, item_id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    if(item_id === '' || item_id === null || item_id === undefined) {
+        res.json(new accountResult('ID가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+    
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            loadItem()
+            .then(result => { 
+                // console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function loadItem() {
+        return mongo.getItem()['getItem'](item_id);
+    }
+});
+
+app.get('/get/tags', (req, res) => {
+    let { key, writer_id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            loadTags()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function loadTags() {
+        return mongo.getTag()['getTags'](writer_id);
+    }
+});
+
+app.post('/insert/item', (req, res) => {
+    let { key } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            insertItem()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function insertItem() {
+        return mongo.getItem()['insertItem'](req.body);
+    }
+});
+
+app.post('/insert/fast', (req, res) => {
+    let { key } = req.query;
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            insertFast()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function insertFast() {
+        return mongo.getFast()['insertFast'](req.body);
+    }
+});
+
+app.post('/insert/project', (req, res) => {
+    let { key } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            insertProject()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function insertProject(): Promise<mongoose.Document> {
+        console.log(JSON.stringify(req.body));
+        return mongo.getProject()['insertProject'](req.body);
+    }
+});
+
+app.post('/insert/subject', (req, res) => {
+    let { key } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            insertSubject()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function insertSubject(): Promise<mongoose.Document> {
+        return mongo.getSubject()['insertSubject'](req.body);
+    }
+});
+
+app.delete('/delete/project', (req, res) => {
+    let { key, _id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            deleteProject()
+            .then(findSubject)
+            .then(deleteSubject)
+            .then(deleteItem)
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function deleteProject(): Promise<mongoose.Document> {
+        return mongo.getProject()['deleteProject'](_id);
+    }
+
+    function findSubject(result): Promise<mongoose.Document> {
+        return mongo.getSubject()['getSubjectList'](_id);
+    }
+
+    function deleteSubject(result): Promise<mongoose.Document> {
+        return new Promise<mongoose.Document>((resolve, reject) => {
+            mongo.getSubject()['deleteSubjectWithProjectId'](_id)
+            .then(childResult => { 
+                console.log(`deleteSubject() : ${ childResult }`);
+                resolve(result);
+             });
+        });
+    }
+
+    function deleteItem(result): Promise<mongoose.Document> {
+        let subjectIds: string[];
+        subjectIds = organize(result);
+        return mongo.getItem()['deleteItemsWithSubjectId'](subjectIds);
+    }
+
+    function organize(result: ISubject[]): string[] {
+        let resultArray = [];
+        for (let i = 0; i < result.length; i++) {
+            resultArray.push(result[i]._id);
+        }
+        return resultArray;
+    }
+})
+
+// 서브젝트를 지워줘요.
+// 서브젝트의 _id가 필요합니다.
+app.delete('/delete/subject', (req, res) => {
+    let { key, _id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            console.log('TTTTT' + _id);
+            deleteSubject()
+            .then(deleteItem)
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function deleteSubject() {
+        return mongo.getSubject()['deleteSubject'](_id);
+    }
+
+    function deleteItem(result) {
+        return new Promise<mongoose.Document>((resolve, reject) => {
+            const subjectId = [];
+            subjectId.push(_id)
+            // 여기서는 SubjectId가 한개이지만, deleteItems()는 배열을 요구해요.
+            mongo.getItem()['deleteItemsWithSubjectId'](subjectId)
+            .then(result => { resolve(result) });
+        });
+    }
+});
+
+// Item을 하나 지워줘요.
+// Item의 _id가 하나 필요합니다.
+app.delete('/delete/item', (req, res) => {
+    let { key, _id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            console.log(`main.ts: delete/item: A id that Server received from client is ${ _id }`);
+            deleteItem()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function deleteItem() {
+        return mongo.getItem()['deleteItem'](_id);
+    }
+});
+
+app.delete('/delete/fast', (req, res) => {
+    let { key, _id } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            console.log(`main.ts: delete/fast: A id that Server received from client is ${ _id }`);
+            deleteFast()
+            .then(result => { 
+                console.log(result);
+                res.json(result); 
+            });
+        }
+    });
+
+    function deleteFast() {
+        return mongo.getFast()['deleteFast'](_id);
+    }
+});
+
+// Fast 단일항목 혹은 여러항목을 가져다 줘요.
+// 사용자는 3가지 방법으로 항목들을 가져올 수 있어요.
+// 1. fast의 _id들을 담고 있는 _ids 배열을 사용.
+// 2. project_id를 사용.
+// 3. project_id와 tag들을 담고 있는, tags를 같이 사용.
+app.get('/get/fast', (req, res) => {
+    let { key, _ids, project_id, tags } = req.query;
+
+    if(key === '' || key === null || key === undefined) {
+        res.json(new accountResult('Key가 전달되지 않았습니다.', false, null));
+        return false;
+    }
+
+    jwt.verify(key, sysConf.JWT_SECRET, (err, decode) => {
+        if(err) res.json(new accountResult('Key에 문제가 있습니다.', false, null));
+        else {
+            console.log(`main.ts: get/fast: _ids is ${ _ids }`);
+            console.log(`main.ts: get/fast: project_id is ${ project_id }`);
+            console.log(`main.ts: get/fast: tags is ${ tags }`);
+            getFast()
+            .then(result => 
+                { 
+                    console.log(result);
+                    res.json(result); 
+                }
+            );
+        }
+    });
+
+    function getFast()
+    {
+        if (_ids !== undefined && _ids !== null)
+        {
+            _ids = _ids.split(',');
+            return mongo.getFast()['getFast'](undefined, _ids, undefined);
+        } else 
+        {
+            if (project_id !== undefined && project_id !== null)
+            {
+                if (tags !== undefined && tags !== null && tags.length > 0)
+                {
+                    tags = tags.split(',');
+                    return mongo.getFast()['getFast'](project_id, undefined, tags);
+                } else
+                {
+                    return mongo.getFast()['getFast'](project_id, undefined, undefined);
+                }
+            }
+        }
     }
 });
 

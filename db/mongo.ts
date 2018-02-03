@@ -3,6 +3,8 @@ import { project } from './project';
 import { subject } from './subject';
 import { user } from './user';
 import { item } from './item';
+import { tag } from './tag';
+import { fast } from './fast';
 
 // 여러군데의 DB에 접속할 경우가 발생할 수 있으므로,
 // 싱글턴으로 가지는 않기로 함.
@@ -12,6 +14,8 @@ export class Mongo {
     project: project;
     subject: subject;
     item: item;
+    tag: tag;
+    fast: fast;
         
     constructor(url: string) {
         this.setConnectMongoDB(url);
@@ -33,21 +37,25 @@ export class Mongo {
         this.project = new project();
         this.subject = new subject();
         this.item = new item();
+        this.tag = new tag();
+        this.fast = new fast();
     }
 
-    getUser(): mongoose.Model<mongoose.Document> {
-        return this.user.getModel();
-    }
+    getUser(): mongoose.Model<mongoose.Document>
+    { return this.user.getModel(); }
 
-    getProject(): mongoose.Model<mongoose.Document> {
-        return this.project.getModel();
-    }
+    getProject(): mongoose.Model<mongoose.Document>
+    { return this.project.getModel(); }
 
-    getSubject(): mongoose.Model<mongoose.Document> {
-        return this.subject.getModel();
-    }
+    getSubject(): mongoose.Model<mongoose.Document>
+    { return this.subject.getModel(); }
 
-    getItem(): mongoose.Model<mongoose.Document> {
-        return this.item.getModel();
-    }
+    getItem(): mongoose.Model<mongoose.Document>
+    { return this.item.getModel(); }
+
+    getTag(): mongoose.Model<mongoose.Document> 
+    { return this.tag.getModel(); }
+
+    getFast(): mongoose.Model<mongoose.Document> 
+    { return this.fast.getModel(); }
 }
