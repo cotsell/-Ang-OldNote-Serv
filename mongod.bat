@@ -1,1 +1,1 @@
-"C:\Program Files\MongoDB\Server\3.4\bin\mongod.exe" --dbpath=C:\Snowydayjy\AngularWorkspace\Project\Server\dbStore
+"C:\Program Files\MongoDB\Server\3.4\bin\mongod.exe" --dbpath=C:\Snowydayjy\AngularWorkspace\ProjectNote\Server\dbStore
