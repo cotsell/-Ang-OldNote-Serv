@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon .\\build\\main.js 192.168.219.101:8000"
+    "start": "nodemon .\\build\\main.js 192.168.219.101:8000",
+    "dev": "nodemon .\\build\\main.js"
   },
   "author": "",
   "license": "ISC",
