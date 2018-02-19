@@ -22,6 +22,20 @@ export interface IItem {
     title?: string;
     text?: string;
     tags?: string[];
+    checkbox_list?: ICheckboxList;
+}
+
+export interface ICheckboxList {
+    id?: string;
+    title: string;
+    list: ICheckbox[];
+}
+
+export interface ICheckbox {
+    id?: string;
+    isChecked?: boolean;
+    text?: string;
+    sortNumber?: number;
 }
 
 export interface ITag {

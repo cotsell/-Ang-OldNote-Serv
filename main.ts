@@ -477,8 +477,11 @@ app.get('/get/item_list', (req, res) => {
 // 수정 후 결과는 상태와 더불어 바뀐 내용을 같이 보냅니다.
 // 변경 항목 중 '_id'는 필수 항목이에요.
 app.put('/update/item', (req, res) => {
-    console.log(`/update/item 으로 요청이 왔어요. : ${ req.body }`);
-    
+    // let temp: any = JSON.stringify(req.body).split(',');
+    // temp.shift();
+    // temp = Object.assign({}, { $set: temp });
+    console.log(`/update/item 으로 요청이 왔어요. : ${ JSON.stringify(req.body) }`);
+    // console.log(temp);
     mongo.getItem()['updateItem'](req.body, (err, raw) => {
         res.json(raw);
     });
