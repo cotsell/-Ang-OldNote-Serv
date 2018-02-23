@@ -45,8 +45,8 @@ export class item {
     }
 
     // Item 단일 항목을 수정합니다.
-    // _id는 필수이며, 나머지 항목에 대해서는 수정하고자 하는 항목만 
-    // 넣어주면 됩니다.
+    // _id는 필수이며,  
+    // 나머지 항목에 대해서는 수정하고자 하는 항목만 넣어주면 됩니다.
     // ex) {_id: '3434324234', title: '변경할 멘트'}
     this.Schema.statics['updateItem'] = function (json, callback) {
       let conditions: any = {};
@@ -70,9 +70,11 @@ export class item {
       let doc: mongoose.Document = new this();
       doc['deleted'] = false;
       doc['number'] = 1;
-      doc['checkbox_list'] = {  id: item.checkbox_list.id,
-                                title: item.checkbox_list.title,
-                                list: item.checkbox_list.list };
+      doc['checkbox_list'] = {
+        id: item.checkbox_list.id,
+        title: item.checkbox_list.title,
+        list: item.checkbox_list.list 
+      };
       doc['subject_id'] = item.subject_id;
       doc['project_id'] = item.project_id;
       doc['writer_id'] = item.writer_id;
@@ -106,9 +108,10 @@ export class item {
     // 위의 deleteItem()과 같은 기능을 하는데, 결과물이 다르다.
     // 새로 수정된 문서를 결과로 돌려줍니다.
     this.Schema.statics['findAndModify'] = function (ItemId: string): Promise<mongoose.Document> {
-      return this['findByIdAndUpdate']( { _id: ItemId },
-                                        { $set: { deleted: true } },
-                                        { new: true });
+      return this['findByIdAndUpdate'](
+        { _id: ItemId },
+        { $set: { deleted: true } },
+        { new: true });
     }
   }
 }
