@@ -67,6 +67,7 @@ export class item {
     // 새로운 Item을 DB에 입력해요. 이때는 필수로 필요한 요소만 입력받아요.
     this.Schema.statics['insertItem'] = function (item: IItem): Promise<mongoose.Document> {
       console.log(`Into the inserItem function.`);
+      console.log(JSON.stringify(item));
       let doc: mongoose.Document = new this();
       doc['deleted'] = false;
       doc['number'] = 1;
