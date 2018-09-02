@@ -1,5 +1,4 @@
 import * as mongoose from 'mongoose';
-import { Mongo } from './mongo';
 import { google } from '../googleOauth/googleOauth';
 import { sysConf } from '../config/sysConfig';
 

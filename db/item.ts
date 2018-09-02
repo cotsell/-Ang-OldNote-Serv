@@ -1,5 +1,4 @@
 import * as mongoose from 'mongoose';
-import { Mongo } from './mongo';
 import { IItem } from '../Interface';
 
 export class item {
